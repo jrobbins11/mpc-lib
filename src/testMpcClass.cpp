@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include "MpcController.hpp"
 
 Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
@@ -9,6 +10,9 @@ Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
 
 int main()
 {
+    // constants
+    const double inf = std::numeric_limits<double>::max();
+
     // dynamics matrices
     Eigen::Matrix<double, 2, 2> A_dyn;
     Eigen::Matrix<double, 2, 1> B_dyn;
@@ -23,19 +27,22 @@ int main()
     R_cost.diagonal() << 0.1;
     P_cost.diagonal() << 1, 1;
 
-    // state constraint matrices: x in [-1, 1]
+    // state constraint matrices: x1 in [-1, 1], x2 in [-1, 1]
     Eigen::Matrix<double, 2, 2> I2 = Eigen::Matrix<double, 2, 2>::Identity();
-    Eigen::Matrix<double, 4, 2> Ax_ineq;
-    Eigen::Vector<double, 4> bx_ineq;
-    Ax_ineq << I2,
-              -I2; // writing this way for readability
-    bx_ineq << 1, 1, 1, 1;
+    Eigen::Matrix<double, 2, 2> Ax_ineq;
+    Eigen::Vector<double, 2> bx_ineq_low;
+    Eigen::Vector<double, 2> bx_ineq_up;
+    Ax_ineq << I2;
+    bx_ineq_low << -1, -1;
+    bx_ineq_up << 1, 1;
 
     // input constraint matrices: u in [-1, 1]
-    Eigen::Matrix<double, 2, 1> Au_ineq;
-    Eigen::Vector<double, 2> bu_ineq;
-    Au_ineq << 1, -1;
-    bu_ineq << 1, 1;
+    Eigen::Matrix<double, 1, 1> Au_ineq;
+    Eigen::Vector<double, 1> bu_ineq_low;
+    Eigen::Vector<double, 1> bu_ineq_up;
+    Au_ineq << 1;
+    bu_ineq_low << -1;
+    bu_ineq_up << 1;
 
     // prediction horizon
     int n_horizon = 10;
@@ -49,7 +56,7 @@ int main()
 
     // create MPC object
     MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
-      Ax_ineq, bx_ineq, Au_ineq, bu_ineq, n_horizon);
+      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, n_horizon);
 
     // display optimization problem matrices
     //MPC.printOptimizationProblem();

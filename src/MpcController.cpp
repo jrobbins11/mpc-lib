@@ -1,16 +1,17 @@
 #include "MpcController.hpp"
 
 // constructor
-MpcController::MpcController(
-      const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref,
+MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
       const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
-      const Eigen::VectorXd &bx_ineq, const Eigen::MatrixXd &Au_ineq, 
-      const Eigen::VectorXd &bu_ineq, int n_horizon): 
+      const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
+      const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
+      const Eigen::VectorXd &bu_ineq_up, int n_horizon):
       x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
-      R_cost(R_cost), P_cost(P_cost), Ax_ineq(Ax_ineq), bx_ineq(bx_ineq), 
-      Au_ineq(Au_ineq), bu_ineq(bu_ineq), n_horizon(n_horizon)
+      R_cost(R_cost), P_cost(P_cost), Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
+      bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
+      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon)
 {
     // validity checking dimensions
     int n_work; // working variable
@@ -32,11 +33,11 @@ MpcController::MpcController(
     }
 
     n_work = Ax_ineq.rows(); // state constraints
-    if (bx_ineq.rows() != n_work)
+    if ((bx_ineq_low.rows() != n_work) || (bx_ineq_up.rows() != n_work))
         throw std::invalid_argument("Inconsistent state constraint dimensions");
 
     n_work = Au_ineq.rows(); // input constraints
-    if (bu_ineq.rows() != n_work)
+    if ((bu_ineq_low.rows() != n_work) || (bu_ineq_up.rows() != n_work))
         throw std::invalid_argument("Inconsistent input constraint dimensions");
 
     if (x_ref.cols() != n_horizon) // reference length
@@ -120,28 +121,29 @@ void MpcController::makeInequalityMatrices()
     // write state inequalities
     for (int i=0; i<(n_horizon+1); i++) 
     {   
-        for (int j=0; j<n_xineq; j++)
-            blow_states(i*n_xineq+j) = -1*OsqpEigen::INFTY;
         
         if (i==0) // no constraint imposed on x0
         {
             for (int j=0; j<n_xineq; j++)
-                bup_states(i*n_xineq+j) = OsqpEigen::INFTY;
+            {
+                blow_states(i*n_xineq+j) = -inf;
+                bup_states(i*n_xineq+j) = inf;
+            }
         }
         else 
         {
             Aineq_states.block(i*n_xineq,i*n_states,n_xineq,n_states) = Ax_ineq;
-            bup_states.segment(i*n_xineq,n_xineq) = bx_ineq;
+            blow_states.segment(i*n_xineq,n_xineq) = bx_ineq_low;
+            bup_states.segment(i*n_xineq,n_xineq) = bx_ineq_up;
         }
     }
 
     // write input inequalities
     for (int i=0; i<n_horizon; i++)
     {
-        for (int j=0; j<n_uineq; j++)
-            blow_inputs(i*n_uineq+j) = -1*OsqpEigen::INFTY;
         Aineq_inputs.block(i*n_uineq, i*n_inputs, n_uineq, n_inputs) = Au_ineq;
-        bup_inputs.segment(i*n_uineq, n_uineq) = bu_ineq;
+        blow_inputs.segment(i*n_uineq, n_uineq) = bu_ineq_low;
+        bup_inputs.segment(i*n_uineq, n_uineq) = bu_ineq_up;
     }
 
     // resize inequality matrices
@@ -258,9 +260,6 @@ bool MpcController::solveOptimizationProblem()
 // control function
 Eigen::VectorXd MpcController::control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref)
 {
-    // TO DO: call updateGradient, updateBounds
-    // solve optimization problem and return solution
-    // https://robotology.github.io/osqp-eigen/class_osqp_eigen_1_1_solver.html
 
     // store x0 and x_ref
     this->x0 = x;
