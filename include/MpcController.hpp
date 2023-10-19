@@ -16,6 +16,7 @@ for any of its methods
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <limits>
 
 class MpcController
 {
@@ -24,6 +25,9 @@ class MpcController
     void getTripletsForMatrix(const Eigen::MatrixXd &mat, 
       std::vector<Eigen::Triplet<double>> &tripvec,
       int rowOffset, int colOffset);
+
+    // infinity
+    const double inf = std::numeric_limits<double>::max();
 
   protected:
 
@@ -54,9 +58,11 @@ class MpcController
     // inequality matrices
     // TO DO: rewrite this in terms of upper and lower bounds so that matrices will be smaller
     Eigen::MatrixXd Ax_ineq;
-    Eigen::VectorXd bx_ineq;
+    Eigen::VectorXd bx_ineq_low;
+    Eigen::VectorXd bx_ineq_up;
     Eigen::MatrixXd Au_ineq;
-    Eigen::VectorXd bu_ineq;
+    Eigen::VectorXd bu_ineq_low;
+    Eigen::VectorXd bu_ineq_up;
 
     // optimization problem matrices
     Eigen::SparseMatrix<double> H; // hessian
@@ -84,8 +90,9 @@ class MpcController
       const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
       const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
-      const Eigen::VectorXd &bx_ineq, const Eigen::MatrixXd &Au_ineq, 
-      const Eigen::VectorXd &bu_ineq, int n_horizon);
+      const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
+      const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
+      const Eigen::VectorXd &bu_ineq_up, int n_horizon);
 
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
