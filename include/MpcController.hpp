@@ -21,6 +21,7 @@ for any of its methods
 class MpcController
 {
   private:
+
     // utilities
     void getTripletsForMatrix(const Eigen::MatrixXd &mat, 
       std::vector<Eigen::Triplet<double>> &tripvec,
@@ -56,7 +57,6 @@ class MpcController
     Eigen::MatrixXd P_cost; // terminal cost
 
     // inequality matrices
-    // TO DO: rewrite this in terms of upper and lower bounds so that matrices will be smaller
     Eigen::MatrixXd Ax_ineq;
     Eigen::VectorXd bx_ineq_low;
     Eigen::VectorXd bx_ineq_up;
