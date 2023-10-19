@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include "MpcController.hpp"
 
 Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
@@ -9,6 +10,9 @@ Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
 
 int main()
 {
+    // constants
+    const double inf = std::numeric_limits<double>::max();
+
     // dynamics matrices
     Eigen::Matrix<double, 2, 2> A_dyn;
     Eigen::Matrix<double, 2, 1> B_dyn;
