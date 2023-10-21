@@ -53,7 +53,7 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     makeInequalityMatrices();
     makeCostMatrices();
 
-    // solver options
+    // settings
     solver.settings()->setVerbosity(false);
     solver.settings()->setWarmStart(true);
     solver.settings()->setTimeLimit(T_sec);
@@ -61,6 +61,8 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     // initial solver setup and configuration
     if (!configureSolver())
         throw std::invalid_argument("Unable to configure solver"); // TO DO: replace with fault behavior?
+    
+    // solve
     if (!solveOptimizationProblem())
         throw std::invalid_argument("Unable to solver optimization problem"); // TO DO: replace with fault behavior?
 

@@ -10,6 +10,9 @@ TO DO: implement some sort of fault behavior if OsqpEigen returns false
 for any of its methods
 */
 
+#ifndef _MPCCONTROLLER_HPP_
+#define _MPCCONTROLLER_HPP_
+
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 #include "OsqpEigen/OsqpEigen.h"
@@ -104,3 +107,5 @@ class MpcController
     void printOptimizationProblem();
 
 };
+
+#endif
