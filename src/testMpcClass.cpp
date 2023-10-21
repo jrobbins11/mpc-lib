@@ -47,6 +47,9 @@ int main()
     // prediction horizon
     int n_horizon = 10;
 
+    // loop time of controller
+    const double t_loop = 0.1;
+
     // initial condition
     Eigen::Vector<double, 2> x0;
     x0 << 1, 0;
@@ -56,7 +59,8 @@ int main()
 
     // create MPC object
     MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
-      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, n_horizon);
+      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+      n_horizon, t_loop);
 
     // display optimization problem matrices
     //MPC.printOptimizationProblem();

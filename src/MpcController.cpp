@@ -7,11 +7,11 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
       const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
       const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
       const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
-      const Eigen::VectorXd &bu_ineq_up, int n_horizon):
+      const Eigen::VectorXd &bu_ineq_up, int n_horizon, double T_loop_sec):
       x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
       R_cost(R_cost), P_cost(P_cost), Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
       bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
-      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon)
+      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
 {
     // validity checking dimensions
     int n_work; // working variable
@@ -53,13 +53,16 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     makeInequalityMatrices();
     makeCostMatrices();
 
-    // solver options
+    // settings
     solver.settings()->setVerbosity(false);
     solver.settings()->setWarmStart(true);
+    solver.settings()->setTimeLimit(T_sec);
 
     // initial solver setup and configuration
     if (!configureSolver())
         throw std::invalid_argument("Unable to configure solver"); // TO DO: replace with fault behavior?
+    
+    // solve
     if (!solveOptimizationProblem())
         throw std::invalid_argument("Unable to solver optimization problem"); // TO DO: replace with fault behavior?
 

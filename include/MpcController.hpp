@@ -10,6 +10,9 @@ TO DO: implement some sort of fault behavior if OsqpEigen returns false
 for any of its methods
 */
 
+#ifndef _MPCCONTROLLER_HPP_
+#define _MPCCONTROLLER_HPP_
+
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 #include "OsqpEigen/OsqpEigen.h"
@@ -40,6 +43,9 @@ class MpcController
 
     // prediction horizon
     int n_horizon; 
+
+    // loop time
+    double T_sec;
 
     // initial condition
     Eigen::VectorXd x0;
@@ -92,7 +98,7 @@ class MpcController
       const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
       const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
       const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
-      const Eigen::VectorXd &bu_ineq_up, int n_horizon);
+      const Eigen::VectorXd &bu_ineq_up, int n_horizon, double T_loop_sec);
 
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
@@ -101,3 +107,5 @@ class MpcController
     void printOptimizationProblem();
 
 };
+
+#endif
