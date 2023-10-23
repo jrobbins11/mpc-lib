@@ -382,32 +382,6 @@ void MpcController::getTripletsForMatrix(const Eigen::MatrixXd &mat, std::vector
     }
 }
 
-// print methods
-void MpcController::printOptimizationProblem()
-{
-    // header
-    std::cout << "Quadratic programming problem of form:" << std::endl;
-    std::cout << " min(z) 0.5*z'*H*z + f*z" << std::endl;
-    std::cout << " subject to:" << std::endl;
-    std::cout << " b_low <= A*z <= b_up\n" << std::endl;
-    std::cout << "Matrices are:\n" << std::endl;
-
-    // cost
-    std::cout << "H = " << std::endl;
-    std::cout << Eigen::MatrixXd(H) << std::endl;
-    std::cout << "f = " << std::endl;
-    std::cout << f << std::endl;
-
-    // constraints
-    std::cout << "A = " << std::endl;
-    std::cout << Eigen::MatrixXd(A) << std::endl;
-    std::cout << "b_low = " << std::endl;
-    std::cout << b_low << std::endl;
-    std::cout << "b_up = " << std::endl;
-    std::cout << b_up << std::endl;
-}
-
-// utilities
 void MpcController::validityCheckDimensions()
 {
     // validity checking dimensions
@@ -446,4 +420,38 @@ void MpcController::validityCheckDimensions()
         if ((n_work != Qx_constraint_cost.rows()) || (n_work != Qx_constraint_cost.cols()))
             throw std::invalid_argument("Inconsistent state slack variable dimensions");
     }
+}
+
+// print methods
+void MpcController::printOptimizationProblem()
+{
+    // header
+    std::cout << "Quadratic programming problem of form:" << std::endl;
+    std::cout << " min(z) 0.5*z'*H*z + f*z" << std::endl;
+    std::cout << " subject to:" << std::endl;
+    std::cout << " b_low <= A*z <= b_up\n" << std::endl;
+    std::cout << "Matrices are:\n" << std::endl;
+
+    // cost
+    std::cout << "H = " << std::endl;
+    std::cout << Eigen::MatrixXd(H) << std::endl;
+    std::cout << "f = " << std::endl;
+    std::cout << f << std::endl;
+
+    // constraints
+    std::cout << "A = " << std::endl;
+    std::cout << Eigen::MatrixXd(A) << std::endl;
+    std::cout << "b_low = " << std::endl;
+    std::cout << b_low << std::endl;
+    std::cout << "b_up = " << std::endl;
+    std::cout << b_up << std::endl;
+}
+
+void MpcController::printSolution()
+{
+    // header
+    std::cout << "Optimal solution vector z is:" << std::endl;
+
+    // print z
+    std::cout << solution << std::endl;
 }

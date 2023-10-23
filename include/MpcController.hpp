@@ -125,8 +125,9 @@ class MpcController
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
 
-    // print method
+    // print methods
     void printOptimizationProblem();
+    void printSolution();
 
 };
 

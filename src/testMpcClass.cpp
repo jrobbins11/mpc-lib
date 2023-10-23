@@ -56,7 +56,7 @@ int main()
 
     // initial condition
     Eigen::Vector<double, 2> x0;
-    x0 << 1, 0;
+    x0 << 3, 0; // note: this violated state constraints so softening needed
 
     // references, allowed to vary over horizon
     Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(2, n_horizon);
