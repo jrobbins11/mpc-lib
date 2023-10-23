@@ -1,6 +1,6 @@
 #include "MpcController.hpp"
 
-// constructor
+// constructor - no constraint softening
 MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
@@ -13,35 +13,12 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
       bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
       bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
 {
-    // validity checking dimensions
-    int n_work; // working variable
-    n_work = A_dyn.rows(); // state dimension
-    if ((A_dyn.cols() != n_work) || (B_dyn.rows() != n_work) || 
-        (Q_cost.rows() != n_work) || (Q_cost.cols() != n_work) ||
-        (P_cost.rows() != n_work) || (P_cost.cols() != n_work) ||
-        (Ax_ineq.cols() != n_work) || (x0.rows() != n_work) ||
-        (x_ref.rows() != n_work))
-    {
-        throw std::invalid_argument("Inconsistent state dimensions");
-    }
-    
-    n_work = B_dyn.cols(); // input dimension
-    if ((R_cost.rows() != n_work) || (R_cost.cols() != n_work) ||
-        (Au_ineq.cols() != n_work))
-    {
-       throw std::invalid_argument("Inconsistent input dimensions");
-    }
 
-    n_work = Ax_ineq.rows(); // state constraints
-    if ((bx_ineq_low.rows() != n_work) || (bx_ineq_up.rows() != n_work))
-        throw std::invalid_argument("Inconsistent state constraint dimensions");
+    // check input dimensions
+    validityCheckDimensions();
 
-    n_work = Au_ineq.rows(); // input constraints
-    if ((bu_ineq_low.rows() != n_work) || (bu_ineq_up.rows() != n_work))
-        throw std::invalid_argument("Inconsistent input constraint dimensions");
-
-    if (x_ref.cols() != n_horizon) // reference length
-        throw std::invalid_argument("Inconsistent prediction/control horizon");
+    // softened constraints flag
+    softenedStateConstraints = false;
 
     // get number of states, constraints, and inputs
     n_states = A_dyn.rows();
@@ -66,6 +43,52 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     if (!solveOptimizationProblem())
         throw std::invalid_argument("Unable to solver optimization problem"); // TO DO: replace with fault behavior?
 
+}
+
+// constructor - softened state constraints
+MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
+    const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
+    const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+    const Eigen::MatrixXd &P_cost, 
+    const Eigen::MatrixXd &Qx_constraint_cost,
+    const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
+    const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
+    const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
+    int n_horizon, double T_loop_sec): 
+      x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
+      R_cost(R_cost), P_cost(P_cost), Qx_constraint_cost(Qx_constraint_cost),
+      Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
+      bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
+      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
+{
+    // check input dimensions
+    validityCheckDimensions();
+
+    // softened constraints flag
+    softenedStateConstraints = true;
+
+    // get number of states, constraints, and inputs
+    n_states = A_dyn.rows();
+    n_inputs = B_dyn.cols();
+    n_xineq = Ax_ineq.rows();
+    n_uineq = Au_ineq.rows();
+
+    // create matrices for optimization problem
+    makeInequalityMatrices();
+    makeCostMatrices();
+
+    // settings
+    solver.settings()->setVerbosity(false);
+    solver.settings()->setWarmStart(true);
+    solver.settings()->setTimeLimit(T_sec);
+
+    // initial solver setup and configuration
+    if (!configureSolver())
+        throw std::invalid_argument("Unable to configure solver"); // TO DO: replace with fault behavior?
+    
+    // solve
+    if (!solveOptimizationProblem())
+        throw std::invalid_argument("Unable to solver optimization problem");
 }
 
 // MPC problem setup
@@ -340,4 +363,38 @@ void MpcController::printOptimizationProblem()
     std::cout << b_low << std::endl;
     std::cout << "b_up = " << std::endl;
     std::cout << b_up << std::endl;
+}
+
+// utilities
+void MpcController::validityCheckDimensions()
+{
+    // validity checking dimensions
+    int n_work; // working variable
+    n_work = A_dyn.rows(); // state dimension
+    if ((A_dyn.cols() != n_work) || (B_dyn.rows() != n_work) || 
+        (Q_cost.rows() != n_work) || (Q_cost.cols() != n_work) ||
+        (P_cost.rows() != n_work) || (P_cost.cols() != n_work) ||
+        (Ax_ineq.cols() != n_work) || (x0.rows() != n_work) ||
+        (x_ref.rows() != n_work))
+    {
+        throw std::invalid_argument("Inconsistent state dimensions");
+    }
+    
+    n_work = B_dyn.cols(); // input dimension
+    if ((R_cost.rows() != n_work) || (R_cost.cols() != n_work) ||
+        (Au_ineq.cols() != n_work))
+    {
+       throw std::invalid_argument("Inconsistent input dimensions");
+    }
+
+    n_work = Ax_ineq.rows(); // state constraints
+    if ((bx_ineq_low.rows() != n_work) || (bx_ineq_up.rows() != n_work))
+        throw std::invalid_argument("Inconsistent state constraint dimensions");
+
+    n_work = Au_ineq.rows(); // input constraints
+    if ((bu_ineq_low.rows() != n_work) || (bu_ineq_up.rows() != n_work))
+        throw std::invalid_argument("Inconsistent input constraint dimensions");
+
+    if (x_ref.cols() != n_horizon) // reference length
+        throw std::invalid_argument("Inconsistent prediction/control horizon");
 }

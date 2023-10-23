@@ -47,6 +47,9 @@ class MpcController
     // loop time
     double T_sec;
 
+    // flags
+    bool softenedStateConstraints;
+
     // initial condition
     Eigen::VectorXd x0;
 
@@ -61,6 +64,11 @@ class MpcController
     Eigen::MatrixXd Q_cost;
     Eigen::MatrixXd R_cost;
     Eigen::MatrixXd P_cost; // terminal cost
+
+    // softened constraint costs
+    // J_k = (1/2)*(s_k^T) Q (s_k)
+    // where b_low <= Ax*x_k - s_k <= b_high
+    Eigen::MatrixXd Qx_constraint_cost;
 
     // inequality matrices
     Eigen::MatrixXd Ax_ineq;
@@ -89,9 +97,12 @@ class MpcController
     bool configureSolver();
     bool solveOptimizationProblem();
 
+    // utilities
+    void validityCheckDimensions();
+
   public:
 
-    // constructor
+    // constructor - no constraint softening
     MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
@@ -99,6 +110,17 @@ class MpcController
       const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
       const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
       const Eigen::VectorXd &bu_ineq_up, int n_horizon, double T_loop_sec);
+
+    // constructor - softened state constraints
+    MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
+      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
+      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+      const Eigen::MatrixXd &P_cost, 
+      const Eigen::MatrixXd &Qx_constraint_cost,
+      const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
+      const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
+      int n_horizon, double T_loop_sec);
 
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
