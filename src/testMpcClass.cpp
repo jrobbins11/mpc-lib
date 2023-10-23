@@ -36,6 +36,13 @@ int main()
     bx_ineq_low << -1, -1;
     bx_ineq_up << 1, 1;
 
+    // state constraint softening
+    Eigen::DiagonalMatrix<double, 2> Qx_constraint_cost;
+    Qx_constraint_cost.diagonal() << 1e6, 1e6;
+
+    Eigen::DiagonalMatrix<double, 1> Qu_constraint_cost;
+    Qu_constraint_cost.diagonal() << 1e6;
+
     // input constraint matrices: u in [-1, 1]
     Eigen::Matrix<double, 1, 1> Au_ineq;
     Eigen::Vector<double, 1> bu_ineq_low;
@@ -57,13 +64,29 @@ int main()
     // references, allowed to vary over horizon
     Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(2, n_horizon);
 
-    // create MPC object
+    // create MPC object - no constraint softening
+    /*
     MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
+      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+      n_horizon, t_loop);
+    */
+
+    // create MPC object - with softened state constraints
+    /*
+    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
+      Qx_constraint_cost,
+      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+      n_horizon, t_loop);
+    */
+
+    // create MPC object - with softened state and input constraints
+    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
+      Qx_constraint_cost, Qu_constraint_cost,
       Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
 
     // display optimization problem matrices
-    //MPC.printOptimizationProblem();
+    //MPC_soft.printOptimizationProblem();
 
     // declare control input variable
     Eigen::Vector<double, 1> u; 
