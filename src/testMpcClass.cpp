@@ -72,7 +72,7 @@ int main()
       n_horizon, t_loop);
 
     // display optimization problem matrices
-    //MPC.printOptimizationProblem();
+    //MPC_soft.printOptimizationProblem();
 
     // declare control input variable
     Eigen::Vector<double, 1> u; 
