@@ -207,11 +207,24 @@ void MpcController::makeCostMatrices()
     int n_H_states = m_H_states;
     int m_H_inputs = n_inputs*n_horizon;
     int n_H_inputs = m_H_inputs;
+
+    int m_H_slack_states, n_H_slack_states;
+    if (softenedStateConstraints)
+    {
+        m_H_slack_states = n_states*(n_horizon+1);
+        n_H_slack_states = m_H_slack_states;
+    }
+    else
+    {
+        m_H_slack_states = 0;
+        n_H_slack_states = 0;
+    }
     
     // resize matrices
-    H.resize(m_H_states+n_H_inputs, m_H_states+n_H_inputs);
-    f.resize(n_H_states+n_H_inputs);
-
+    H.resize(m_H_states+m_H_inputs+m_H_slack_states, 
+        n_H_states+n_H_inputs+n_H_slack_states);
+    f.resize(n_H_states+n_H_inputs+n_H_slack_states);
+    
     // get triplets to fill H
     std::vector<Eigen::Triplet<double>> tripvec;
     for (int i=1; i<n_horizon+1; i++) // no cost on x0
@@ -224,6 +237,15 @@ void MpcController::makeCostMatrices()
     for (int i=0; i<n_horizon; i++)
     {
         getTripletsForMatrix(R_cost, tripvec, m_H_states + n_inputs*i, n_H_states + n_inputs*i);
+    }
+    if (softenedStateConstraints)
+    {
+        for (int i=1; i<n_horizon+1; i++) // no cost on x0
+        {
+            getTripletsForMatrix(Qx_constraint_cost, tripvec, 
+                m_H_states + m_H_inputs + n_states*i, 
+                m_H_states + m_H_inputs + n_states*i);
+        }
     }
 
     // fill H
