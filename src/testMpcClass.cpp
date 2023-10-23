@@ -40,6 +40,9 @@ int main()
     Eigen::DiagonalMatrix<double, 2> Qx_constraint_cost;
     Qx_constraint_cost.diagonal() << 1e6, 1e6;
 
+    Eigen::DiagonalMatrix<double, 1> Qu_constraint_cost;
+    Qu_constraint_cost.diagonal() << 1e6;
+
     // input constraint matrices: u in [-1, 1]
     Eigen::Matrix<double, 1, 1> Au_ineq;
     Eigen::Vector<double, 1> bu_ineq_low;
@@ -56,18 +59,29 @@ int main()
 
     // initial condition
     Eigen::Vector<double, 2> x0;
-    x0 << 3, 0; // note: this violated state constraints so softening needed
+    x0 << 1, 0;
 
     // references, allowed to vary over horizon
     Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(2, n_horizon);
 
     // create MPC object - no constraint softening
+    /*
     MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
       Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
+    */
 
     // create MPC object - with softened state constraints
-    MpcController MPC_soft(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, Qx_constraint_cost, 
+    /*
+    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
+      Qx_constraint_cost,
+      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+      n_horizon, t_loop);
+    */
+
+    // create MPC object - with softened state and input constraints
+    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
+      Qx_constraint_cost, Qu_constraint_cost,
       Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
 
@@ -82,7 +96,7 @@ int main()
     for (int i=0; i<19; i++)
     {
       // compute control and print to console
-      u = MPC_soft.control(x, x_ref);
+      u = MPC.control(x, x_ref);
       std::cout << "u = " << u << std::endl;
 
       // step dynamics

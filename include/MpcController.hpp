@@ -49,6 +49,7 @@ class MpcController
 
     // flags
     bool softenedStateConstraints;
+    bool softenedInputConstraints;
 
     // initial condition
     Eigen::VectorXd x0;
@@ -67,8 +68,10 @@ class MpcController
 
     // softened constraint costs
     // J_k = (1/2)*(s_k^T) Q (s_k)
-    // where b_low <= Ax*x_k - s_k <= b_high
+    // where bx_low <= Ax*x_k - sx_k <= bx_high
+    // where bu_low <= Au*u_k - su_k <= bu_high
     Eigen::MatrixXd Qx_constraint_cost;
+    Eigen::MatrixXd Qu_constraint_cost;
 
     // inequality matrices
     Eigen::MatrixXd Ax_ineq;
@@ -117,6 +120,17 @@ class MpcController
       const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
       const Eigen::MatrixXd &P_cost, 
       const Eigen::MatrixXd &Qx_constraint_cost,
+      const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
+      const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
+      int n_horizon, double T_loop_sec);
+
+    // constructor - softened state and input constraints
+    MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
+      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
+      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+      const Eigen::MatrixXd &P_cost, 
+      const Eigen::MatrixXd &Qx_constraint_cost, const Eigen::MatrixXd &Qu_constraint_cost,
       const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
       const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
       const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
