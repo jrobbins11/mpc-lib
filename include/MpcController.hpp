@@ -40,6 +40,7 @@ class MpcController
     int n_inputs;
     int n_xineq;
     int n_uineq;
+    int n_xtermineq;
 
     // prediction horizon
     int n_horizon; 
@@ -71,12 +72,20 @@ class MpcController
     // where bx_low <= Ax*x_k - sx_k <= bx_high
     // where bu_low <= Au*u_k - su_k <= bu_high
     Eigen::MatrixXd Qx_constraint_cost;
+    Eigen::MatrixXd Qxterm_constraint_cost;
     Eigen::MatrixXd Qu_constraint_cost;
 
-    // inequality matrices
+    // state constraints
     Eigen::MatrixXd Ax_ineq;
     Eigen::VectorXd bx_ineq_low;
     Eigen::VectorXd bx_ineq_up;
+
+    // terminal state constraints
+    Eigen::MatrixXd Ax_term_ineq;
+    Eigen::VectorXd bx_term_ineq_low;
+    Eigen::VectorXd bx_term_ineq_up;
+
+    // input constraints
     Eigen::MatrixXd Au_ineq;
     Eigen::VectorXd bu_ineq_low;
     Eigen::VectorXd bu_ineq_up;
@@ -106,35 +115,72 @@ class MpcController
   public:
 
     // constructor - no constraint softening
-    MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
-      const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
-      const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
-      const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
-      const Eigen::VectorXd &bu_ineq_up, int n_horizon, double T_loop_sec);
+    MpcController(
+      const Eigen::VectorXd &x0, 
+      const Eigen::MatrixXd &x_ref, 
+      const Eigen::MatrixXd &A_dyn, 
+      const Eigen::MatrixXd &B_dyn,
+      const Eigen::MatrixXd &Q_cost, 
+      const Eigen::MatrixXd &R_cost, 
+      const Eigen::MatrixXd &P_cost, 
+      const Eigen::MatrixXd &Ax_ineq, 
+      const Eigen::VectorXd &bx_ineq_low, 
+      const Eigen::VectorXd &bx_ineq_up,
+      const Eigen::MatrixXd &Ax_term_ineq, 
+      const Eigen::VectorXd &bx_term_ineq_low, 
+      const Eigen::VectorXd &bx_term_ineq_up,
+      const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::VectorXd &bu_ineq_low,
+      const Eigen::VectorXd &bu_ineq_up, 
+      int n_horizon, 
+      double T_loop_sec);
 
     // constructor - softened state constraints
-    MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+    MpcController(
+      const Eigen::VectorXd &x0, 
+      const Eigen::MatrixXd &x_ref, 
+      const Eigen::MatrixXd &A_dyn, 
+      const Eigen::MatrixXd &B_dyn,
+      const Eigen::MatrixXd &Q_cost, 
+      const Eigen::MatrixXd &R_cost, 
       const Eigen::MatrixXd &P_cost, 
       const Eigen::MatrixXd &Qx_constraint_cost,
-      const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
-      const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
-      const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
-      int n_horizon, double T_loop_sec);
+      const Eigen::MatrixXd &Qxterm_constraint_cost,
+      const Eigen::MatrixXd &Ax_ineq, 
+      const Eigen::VectorXd &bx_ineq_low, 
+      const Eigen::VectorXd &bx_ineq_up, 
+      const Eigen::MatrixXd &Ax_term_ineq, 
+      const Eigen::VectorXd &bx_term_ineq_low, 
+      const Eigen::VectorXd &bx_term_ineq_up,
+      const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::VectorXd &bu_ineq_low, 
+      const Eigen::VectorXd &bu_ineq_up,
+      int n_horizon, 
+      double T_loop_sec);
 
     // constructor - softened state and input constraints
-    MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+    MpcController(
+      const Eigen::VectorXd &x0, 
+      const Eigen::MatrixXd &x_ref, 
+      const Eigen::MatrixXd &A_dyn, 
+      const Eigen::MatrixXd &B_dyn,
+      const Eigen::MatrixXd &Q_cost, 
+      const Eigen::MatrixXd &R_cost, 
       const Eigen::MatrixXd &P_cost, 
-      const Eigen::MatrixXd &Qx_constraint_cost, const Eigen::MatrixXd &Qu_constraint_cost,
-      const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
-      const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
-      const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
-      int n_horizon, double T_loop_sec);
+      const Eigen::MatrixXd &Qx_constraint_cost, 
+      const Eigen::MatrixXd &Qxterm_constraint_cost,
+      const Eigen::MatrixXd &Qu_constraint_cost,
+      const Eigen::MatrixXd &Ax_ineq, 
+      const Eigen::VectorXd &bx_ineq_low, 
+      const Eigen::VectorXd &bx_ineq_up, 
+      const Eigen::MatrixXd &Ax_term_ineq, 
+      const Eigen::VectorXd &bx_term_ineq_low, 
+      const Eigen::VectorXd &bx_term_ineq_up,
+      const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::VectorXd &bu_ineq_low, 
+      const Eigen::VectorXd &bu_ineq_up,
+      int n_horizon, 
+      double T_loop_sec);
 
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
