@@ -328,7 +328,7 @@ void MpcController::makeInequalityMatrices()
     // resize (and init to zero) inequality matrices
     A.resize(m_Aeq_states + m_Aineq_states + m_Aineq_states_term + m_Aineq_inputs, 
         n_Aeq_states + n_Aeq_inputs + n_Aineq_slack_states + n_Aineq_slack_states_term + n_Aineq_slack_inputs);
-    b_low = Eigen::VectorXd::Zero(m_Aeq_states + m_Aineq_states + m_Aineq_inputs);
+    b_low = Eigen::VectorXd::Zero(m_beq + m_b_states + m_b_states_term + m_b_inputs);
     b_up = Eigen::VectorXd::Zero(m_beq + m_b_states + m_b_states_term + m_b_inputs);
 
     // get triplets to fill sparse matrix
@@ -402,9 +402,9 @@ void MpcController::makeCostMatrices()
     }
     
     // resize matrices
-    H.resize(m_H_states+m_H_inputs+m_H_slack_states+m_H_slack_inputs, 
-        n_H_states+n_H_inputs+n_H_slack_states+n_H_slack_inputs);
-    f.resize(n_H_states+n_H_inputs+n_H_slack_states+n_H_slack_inputs);
+    H.resize(m_H_states + m_H_inputs + m_H_slack_states + m_H_slack_states_term + m_H_slack_inputs, 
+        n_H_states + n_H_inputs + n_H_slack_states + n_H_slack_states_term + n_H_slack_inputs);
+    f.resize(n_H_states + n_H_inputs + n_H_slack_states + n_H_slack_states_term + n_H_slack_inputs);
     
     // get triplets to fill H
     std::vector<Eigen::Triplet<double>> tripvec;
