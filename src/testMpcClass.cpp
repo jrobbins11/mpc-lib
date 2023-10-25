@@ -77,16 +77,24 @@ int main()
 
     // create MPC object - no constraint softening
     /*
-    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
-      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+    MpcController MPC(x0, x_ref, 
+      A_dyn, B_dyn, 
+      Q_cost, R_cost, P_cost, 
+      Ax_ineq, bx_ineq_low, bx_ineq_up, 
+      Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
+      Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
     */
 
     // create MPC object - with softened state constraints
     /*
-    MpcController MPC(x0, x_ref, A_dyn, B_dyn, Q_cost, R_cost, P_cost, 
-      Qx_constraint_cost,
-      Ax_ineq, bx_ineq_low, bx_ineq_up, Au_ineq, bu_ineq_low, bu_ineq_up, 
+    MpcController MPC(x0, x_ref, 
+      A_dyn, B_dyn, 
+      Q_cost, R_cost, P_cost, 
+      Qx_constraint_cost, Qxterm_constraint_cost,
+      Ax_ineq, bx_ineq_low, bx_ineq_up, 
+      Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
+      Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
     */
 
