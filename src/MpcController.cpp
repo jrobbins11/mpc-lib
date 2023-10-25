@@ -1,17 +1,32 @@
 #include "MpcController.hpp"
 
 // constructor - no constraint softening
-MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-      const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-      const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
-      const Eigen::MatrixXd &P_cost, const Eigen::MatrixXd &Ax_ineq, 
-      const Eigen::VectorXd &bx_ineq_low, const Eigen::VectorXd &bx_ineq_up,
-      const Eigen::MatrixXd &Au_ineq, const Eigen::VectorXd &bu_ineq_low,
-      const Eigen::VectorXd &bu_ineq_up, int n_horizon, double T_loop_sec):
-      x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
-      R_cost(R_cost), P_cost(P_cost), Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
-      bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
-      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
+MpcController::MpcController(
+    const Eigen::VectorXd &x0, 
+    const Eigen::MatrixXd &x_ref, 
+    const Eigen::MatrixXd &A_dyn, 
+    const Eigen::MatrixXd &B_dyn,
+    const Eigen::MatrixXd &Q_cost, 
+    const Eigen::MatrixXd &R_cost, 
+    const Eigen::MatrixXd &P_cost, 
+    const Eigen::MatrixXd &Ax_ineq, 
+    const Eigen::VectorXd &bx_ineq_low, 
+    const Eigen::VectorXd &bx_ineq_up,
+    const Eigen::MatrixXd &Ax_term_ineq, 
+    const Eigen::VectorXd &bx_term_ineq_low, 
+    const Eigen::VectorXd &bx_term_ineq_up,
+    const Eigen::MatrixXd &Au_ineq, 
+    const Eigen::VectorXd &bu_ineq_low,
+    const Eigen::VectorXd &bu_ineq_up, 
+    int n_horizon, 
+    double T_loop_sec):
+    x0(x0), x_ref(x_ref), 
+    A_dyn(A_dyn), B_dyn(B_dyn), 
+    Q_cost(Q_cost), R_cost(R_cost), P_cost(P_cost), 
+    Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low), bx_ineq_up(bx_ineq_up),
+    Ax_term_ineq(Ax_term_ineq), bx_term_ineq_low(bx_term_ineq_low), bx_term_ineq_up(bx_term_ineq_up), 
+    Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), bu_ineq_up(bu_ineq_up), 
+    n_horizon(n_horizon), T_sec(T_loop_sec)
 {
 
     // softened constraints flag
@@ -26,6 +41,7 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     n_inputs = B_dyn.cols();
     n_xineq = Ax_ineq.rows();
     n_uineq = Au_ineq.rows();
+    n_xtermineq = Ax_term_ineq.rows();
 
     // create matrices for optimization problem
     makeInequalityMatrices();
@@ -47,21 +63,35 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
 }
 
 // constructor - softened state constraints
-MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-    const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-    const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+MpcController::MpcController(
+    const Eigen::VectorXd &x0, 
+    const Eigen::MatrixXd &x_ref, 
+    const Eigen::MatrixXd &A_dyn, 
+    const Eigen::MatrixXd &B_dyn,
+    const Eigen::MatrixXd &Q_cost, 
+    const Eigen::MatrixXd &R_cost, 
     const Eigen::MatrixXd &P_cost, 
     const Eigen::MatrixXd &Qx_constraint_cost,
-    const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
-    const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
-    const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
-    int n_horizon, double T_loop_sec): 
-      x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
-      R_cost(R_cost), P_cost(P_cost), 
-      Qx_constraint_cost(Qx_constraint_cost),
-      Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
-      bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
-      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
+    const Eigen::MatrixXd &Qxterm_constraint_cost,
+    const Eigen::MatrixXd &Ax_ineq, 
+    const Eigen::VectorXd &bx_ineq_low, 
+    const Eigen::VectorXd &bx_ineq_up, 
+    const Eigen::MatrixXd &Ax_term_ineq, 
+    const Eigen::VectorXd &bx_term_ineq_low, 
+    const Eigen::VectorXd &bx_term_ineq_up,
+    const Eigen::MatrixXd &Au_ineq, 
+    const Eigen::VectorXd &bu_ineq_low, 
+    const Eigen::VectorXd &bu_ineq_up,
+    int n_horizon, 
+    double T_loop_sec): 
+    x0(x0), x_ref(x_ref), 
+    A_dyn(A_dyn), B_dyn(B_dyn), 
+    Q_cost(Q_cost), R_cost(R_cost), P_cost(P_cost), 
+    Qx_constraint_cost(Qx_constraint_cost), Qxterm_constraint_cost(Qxterm_constraint_cost),
+    Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low), bx_ineq_up(bx_ineq_up), 
+    Ax_term_ineq(Ax_term_ineq), bx_term_ineq_low(bx_term_ineq_low), bx_term_ineq_up(bx_term_ineq_up), 
+    Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), bu_ineq_up(bu_ineq_up), 
+    n_horizon(n_horizon), T_sec(T_loop_sec)
 {
 
     // softened constraints flag
@@ -76,6 +106,7 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     n_inputs = B_dyn.cols();
     n_xineq = Ax_ineq.rows();
     n_uineq = Au_ineq.rows();
+    n_xtermineq = Ax_term_ineq.rows();
 
     // create matrices for optimization problem
     makeInequalityMatrices();
@@ -96,21 +127,36 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
 }
 
 // constructor - softened state and input constraints
-MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x_ref, 
-    const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn,
-    const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost, 
+MpcController::MpcController(
+    const Eigen::VectorXd &x0, 
+    const Eigen::MatrixXd &x_ref, 
+    const Eigen::MatrixXd &A_dyn, 
+    const Eigen::MatrixXd &B_dyn,
+    const Eigen::MatrixXd &Q_cost, 
+    const Eigen::MatrixXd &R_cost, 
     const Eigen::MatrixXd &P_cost, 
-    const Eigen::MatrixXd &Qx_constraint_cost, const Eigen::MatrixXd &Qu_constraint_cost,
-    const Eigen::MatrixXd &Ax_ineq, const Eigen::VectorXd &bx_ineq_low, 
-    const Eigen::VectorXd &bx_ineq_up, const Eigen::MatrixXd &Au_ineq, 
-    const Eigen::VectorXd &bu_ineq_low, const Eigen::VectorXd &bu_ineq_up,
-    int n_horizon, double T_loop_sec): 
-      x0(x0), x_ref(x_ref), A_dyn(A_dyn), B_dyn(B_dyn), Q_cost(Q_cost), 
-      R_cost(R_cost), P_cost(P_cost), 
-      Qx_constraint_cost(Qx_constraint_cost), Qu_constraint_cost(Qu_constraint_cost),
-      Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low),
-      bx_ineq_up(bx_ineq_up), Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), 
-      bu_ineq_up(bu_ineq_up), n_horizon(n_horizon), T_sec(T_loop_sec)
+    const Eigen::MatrixXd &Qx_constraint_cost, 
+    const Eigen::MatrixXd &Qxterm_constraint_cost, 
+    const Eigen::MatrixXd &Qu_constraint_cost,
+    const Eigen::MatrixXd &Ax_ineq, 
+    const Eigen::VectorXd &bx_ineq_low, 
+    const Eigen::VectorXd &bx_ineq_up, 
+    const Eigen::MatrixXd &Ax_term_ineq, 
+    const Eigen::VectorXd &bx_term_ineq_low, 
+    const Eigen::VectorXd &bx_term_ineq_up,
+    const Eigen::MatrixXd &Au_ineq, 
+    const Eigen::VectorXd &bu_ineq_low, 
+    const Eigen::VectorXd &bu_ineq_up,
+    int n_horizon, 
+    double T_loop_sec): 
+    x0(x0), x_ref(x_ref), 
+    A_dyn(A_dyn), B_dyn(B_dyn), 
+    Q_cost(Q_cost), R_cost(R_cost), P_cost(P_cost), 
+    Qx_constraint_cost(Qx_constraint_cost), Qxterm_constraint_cost(Qxterm_constraint_cost), Qu_constraint_cost(Qu_constraint_cost),
+    Ax_ineq(Ax_ineq), bx_ineq_low(bx_ineq_low), bx_ineq_up(bx_ineq_up), 
+    Ax_term_ineq(Ax_term_ineq), bx_term_ineq_low(bx_term_ineq_low), bx_term_ineq_up(bx_term_ineq_up), 
+    Au_ineq(Au_ineq), bu_ineq_low(bu_ineq_low), bu_ineq_up(bu_ineq_up), 
+    n_horizon(n_horizon), T_sec(T_loop_sec)
 {
 
     // softened constraints flag
@@ -125,6 +171,7 @@ MpcController::MpcController(const Eigen::VectorXd &x0, const Eigen::MatrixXd &x
     n_inputs = B_dyn.cols();
     n_xineq = Ax_ineq.rows();
     n_uineq = Au_ineq.rows();
+    n_xtermineq = Ax_term_ineq.rows();
 
     // create matrices for optimization problem
     makeInequalityMatrices();
@@ -152,6 +199,7 @@ void MpcController::makeInequalityMatrices()
     // identity matrices
     Eigen::MatrixXd I_st = Eigen::MatrixXd::Identity(n_states, n_states); // state dimension
     Eigen::MatrixXd I_xineq = Eigen::MatrixXd::Identity(n_xineq, n_xineq); // state constraint dimension
+    Eigen::MatrixXd I_xtermineq = Eigen::MatrixXd::Identity(n_xtermineq, n_xtermineq); // state constraint dimension
     Eigen::MatrixXd I_uineq = Eigen::MatrixXd::Identity(n_uineq, n_uineq); // input constraint dimension
     
     // matrix sizes
@@ -184,23 +232,30 @@ void MpcController::makeInequalityMatrices()
     }
 
     // matrix sizes
-    int m_Aineq_states = (n_horizon+1)*n_xineq;
-    int n_Aineq_states = (n_horizon+1)*n_states;
+    int m_Aineq_states = n_horizon*n_xineq;
+    int n_Aineq_states = n_horizon*n_states;
+    int m_Aineq_states_term = n_xtermineq;
+    int n_Aineq_states_term = n_states;
     int m_Aineq_inputs = n_horizon*n_uineq;
     int n_Aineq_inputs = n_horizon*n_inputs;
     int m_b_states = m_Aineq_states;
+    int m_b_states_term = m_Aineq_states_term;
     int m_b_inputs = m_Aineq_inputs;
 
-    int m_Aineq_slack_states, n_Aineq_slack_states;
+    int m_Aineq_slack_states, n_Aineq_slack_states, m_Aineq_slack_states_term, n_Aineq_slack_states_term;
     if (softenedStateConstraints)
     {
-        m_Aineq_slack_states = (n_horizon+1)*n_xineq;
-        n_Aineq_slack_states = (n_horizon+1)*n_xineq;
+        m_Aineq_slack_states = n_horizon*n_xineq;
+        n_Aineq_slack_states = n_horizon*n_xineq;
+        m_Aineq_slack_states_term = n_xtermineq;
+        n_Aineq_slack_states_term = n_xtermineq;
     }
     else
     {
         m_Aineq_slack_states = 0;
         n_Aineq_slack_states = 0;
+        m_Aineq_slack_states_term = 0;
+        n_Aineq_slack_states_term = 0;
     }
 
     int m_Aineq_slack_inputs, n_Aineq_slack_inputs;
@@ -217,16 +272,20 @@ void MpcController::makeInequalityMatrices()
     
     // setup state and input inequality constraints, initialize to zero
     Eigen::MatrixXd Aineq_states = Eigen::MatrixXd::Zero(m_Aineq_states, n_Aineq_states);
+    Eigen::MatrixXd Aineq_states_term = Eigen::MatrixXd::Zero(m_Aineq_states_term, n_Aineq_states_term);
     Eigen::MatrixXd Aineq_inputs = Eigen::MatrixXd::Zero(m_Aineq_inputs, n_Aineq_inputs);
     Eigen::MatrixXd Aineq_slack_states = Eigen::MatrixXd::Zero(m_Aineq_slack_states, n_Aineq_slack_states);
+    Eigen::MatrixXd Aineq_slack_states_term = Eigen::MatrixXd::Zero(m_Aineq_slack_states_term, n_Aineq_slack_states_term);
     Eigen::MatrixXd Aineq_slack_inputs = Eigen::MatrixXd::Zero(m_Aineq_slack_inputs, n_Aineq_slack_inputs);
     Eigen::VectorXd bup_states = Eigen::VectorXd::Zero(m_b_states);
     Eigen::VectorXd blow_states = Eigen::VectorXd::Zero(m_b_states);
+    Eigen::VectorXd bup_states_term = Eigen::VectorXd::Zero(m_b_states_term);
+    Eigen::VectorXd blow_states_term = Eigen::VectorXd::Zero(m_b_states_term);
     Eigen::VectorXd bup_inputs = Eigen::VectorXd::Zero(m_b_inputs);
     Eigen::VectorXd blow_inputs = Eigen::VectorXd::Zero(m_b_inputs);
 
     // write state inequalities
-    for (int i=0; i<(n_horizon+1); i++) 
+    for (int i=0; i<n_horizon; i++) 
     {   
         
         if (i==0) // no constraint imposed on x0
@@ -248,6 +307,13 @@ void MpcController::makeInequalityMatrices()
         }
     }
 
+    // write terminal state inequalities
+    Aineq_states_term = Ax_term_ineq;
+    blow_states_term = bx_term_ineq_low;
+    bup_states_term = bx_term_ineq_up;
+    if (softenedStateConstraints)
+        Aineq_slack_states_term = -I_xtermineq;
+
     // write input inequalities
     for (int i=0; i<n_horizon; i++)
     {
@@ -259,22 +325,27 @@ void MpcController::makeInequalityMatrices()
             Aineq_slack_inputs.block(i*n_uineq,i*n_uineq,n_uineq,n_uineq) = -I_uineq;
     }
 
-    // resize inequality matrices
-    A.resize(m_Aeq_states + m_Aineq_states + m_Aineq_inputs, 
-        n_Aeq_states + n_Aeq_inputs + n_Aineq_slack_states + n_Aineq_slack_inputs);
-    b_low.resize(m_Aeq_states + m_Aineq_states + m_Aineq_inputs);
-    b_up.resize(m_Aeq_states + m_Aineq_states + m_Aineq_inputs);
+    // resize (and init to zero) inequality matrices
+    A.resize(m_Aeq_states + m_Aineq_states + m_Aineq_states_term + m_Aineq_inputs, 
+        n_Aeq_states + n_Aeq_inputs + n_Aineq_slack_states + n_Aineq_slack_states_term + n_Aineq_slack_inputs);
+    b_low = Eigen::VectorXd::Zero(m_beq + m_b_states + m_b_states_term + m_b_inputs);
+    b_up = Eigen::VectorXd::Zero(m_beq + m_b_states + m_b_states_term + m_b_inputs);
 
     // get triplets to fill sparse matrix
     std::vector<Eigen::Triplet<double>> tripvec;
     getTripletsForMatrix(Aeq_states, tripvec, 0, 0);
     getTripletsForMatrix(Aeq_inputs, tripvec, 0, n_Aeq_states);
     getTripletsForMatrix(Aineq_states, tripvec, m_Aeq_states, 0);
-    getTripletsForMatrix(Aineq_inputs, tripvec, m_Aeq_states+m_Aineq_states, n_Aeq_states);
+    getTripletsForMatrix(Aineq_states_term, tripvec, m_Aeq_states+m_Aineq_states, n_Aineq_states);
+    getTripletsForMatrix(Aineq_inputs, tripvec, m_Aeq_states+m_Aineq_states+m_Aineq_states_term, 
+        n_Aineq_states+n_Aineq_states_term);
     if (softenedStateConstraints)
         getTripletsForMatrix(Aineq_slack_states, tripvec, m_Aeq_states, n_Aeq_states+n_Aeq_inputs);
+        getTripletsForMatrix(Aineq_slack_states_term, tripvec, m_Aeq_states+m_Aineq_states, 
+            n_Aeq_states+n_Aeq_inputs+n_Aineq_slack_states);
     if (softenedInputConstraints)
-        getTripletsForMatrix(Aineq_slack_inputs, tripvec, m_Aeq_states+m_Aineq_states, n_Aeq_states+n_Aeq_inputs+n_Aineq_slack_states);
+        getTripletsForMatrix(Aineq_slack_inputs, tripvec, m_Aeq_states+m_Aineq_states+m_Aineq_states_term, 
+            n_Aeq_states+n_Aeq_inputs+n_Aineq_slack_states+n_Aineq_slack_states_term);
 
     // fill sparse matrix
     A.setFromTriplets(tripvec.begin(), tripvec.end());
@@ -286,8 +357,11 @@ void MpcController::makeInequalityMatrices()
     b_low.segment(m_beq,m_b_states) = blow_states;
     b_up.segment(m_beq,m_b_states) = bup_states;
 
-    b_low.segment(m_beq+m_b_states,m_b_inputs) = blow_inputs;
-    b_up.segment(m_beq+m_b_states,m_b_inputs) = bup_inputs;
+    b_low.segment(m_beq+m_b_states,m_b_states_term) = blow_states_term;
+    b_up.segment(m_beq+m_b_states,m_b_states_term) = bup_states_term;
+
+    b_low.segment(m_beq+m_b_states+m_b_states_term,m_b_inputs) = blow_inputs;
+    b_up.segment(m_beq+m_b_states+m_b_states_term,m_b_inputs) = bup_inputs;
 
 }
 
@@ -299,16 +373,20 @@ void MpcController::makeCostMatrices()
     int m_H_inputs = n_inputs*n_horizon;
     int n_H_inputs = m_H_inputs;
 
-    int m_H_slack_states, n_H_slack_states;
+    int m_H_slack_states, n_H_slack_states, m_H_slack_states_term, n_H_slack_states_term;
     if (softenedStateConstraints)
     {
-        m_H_slack_states = n_xineq*(n_horizon+1);
+        m_H_slack_states = n_xineq*n_horizon;
         n_H_slack_states = m_H_slack_states;
+        m_H_slack_states_term = n_xtermineq;
+        n_H_slack_states_term = m_H_slack_states_term;
     }
     else
     {
         m_H_slack_states = 0;
         n_H_slack_states = 0;
+        m_H_slack_states_term = 0;
+        n_H_slack_states_term = 0;
     }
 
     int m_H_slack_inputs, n_H_slack_inputs;
@@ -324,9 +402,9 @@ void MpcController::makeCostMatrices()
     }
     
     // resize matrices
-    H.resize(m_H_states+m_H_inputs+m_H_slack_states+m_H_slack_inputs, 
-        n_H_states+n_H_inputs+n_H_slack_states+n_H_slack_inputs);
-    f.resize(n_H_states+n_H_inputs+n_H_slack_states+n_H_slack_inputs);
+    H.resize(m_H_states + m_H_inputs + m_H_slack_states + m_H_slack_states_term + m_H_slack_inputs, 
+        n_H_states + n_H_inputs + n_H_slack_states + n_H_slack_states_term + n_H_slack_inputs);
+    f.resize(n_H_states + n_H_inputs + n_H_slack_states + n_H_slack_states_term + n_H_slack_inputs);
     
     // get triplets to fill H
     std::vector<Eigen::Triplet<double>> tripvec;
@@ -343,20 +421,23 @@ void MpcController::makeCostMatrices()
     }
     if (softenedStateConstraints)
     {
-        for (int i=1; i<n_horizon+1; i++) // no cost on x0
+        for (int i=1; i<n_horizon; i++) // no cost on x0
         {
             getTripletsForMatrix(Qx_constraint_cost, tripvec, 
                 m_H_states + m_H_inputs + n_xineq*i, 
                 n_H_states + n_H_inputs + n_xineq*i);
         }
+        getTripletsForMatrix(Qxterm_constraint_cost, tripvec,
+            m_H_states + m_H_inputs + m_H_slack_states,
+            n_H_states + n_H_inputs + n_H_slack_states);
     }
     if (softenedInputConstraints)
     {
         for (int i=0; i<n_horizon; i++)
         {
             getTripletsForMatrix(Qu_constraint_cost, tripvec,
-                m_H_states + m_H_inputs + m_H_slack_states + n_uineq*i,
-                n_H_states + n_H_inputs + n_H_slack_states + n_uineq*i);
+                m_H_states + m_H_inputs + m_H_slack_states + m_H_slack_states_term + n_uineq*i,
+                n_H_states + n_H_inputs + n_H_slack_states + n_H_slack_states_term + n_uineq*i);
         }
     }
 
@@ -364,6 +445,7 @@ void MpcController::makeCostMatrices()
     H.setFromTriplets(tripvec.begin(), tripvec.end());
 
     // fill f
+    f = Eigen::VectorXd::Zero(n_H_states+n_H_inputs+n_H_slack_states+n_H_slack_states_term+n_H_slack_inputs); // init to zero
     Eigen::VectorXd x_ref_i; // declare
     for (int i=1; i<n_horizon+1; i++)
     {
@@ -376,9 +458,6 @@ void MpcController::makeCostMatrices()
         else
             f.segment(i*n_states, n_states) = -P_cost*x_ref_i;
     }
-
-    // fill remainder with zeros
-    f.segment(n_H_states, n_H_inputs+n_H_slack_states+n_H_slack_inputs) = Eigen::VectorXd::Zero(n_H_inputs+n_H_slack_states+n_H_slack_inputs);
 }
 
 // solver functions
@@ -498,6 +577,10 @@ void MpcController::validityCheckDimensions()
     n_work = Ax_ineq.rows(); // state constraints
     if ((bx_ineq_low.rows() != n_work) || (bx_ineq_up.rows() != n_work))
         throw std::invalid_argument("Inconsistent state constraint dimensions");
+    
+    n_work = Ax_term_ineq.rows(); // terminal state constraints
+    if ((bx_term_ineq_low.rows() != n_work) || (bx_term_ineq_up.rows() != n_work))
+        throw std::invalid_argument("Inconsistent terminal state constraint dimensions");
 
     n_work = Au_ineq.rows(); // input constraints
     if ((bu_ineq_low.rows() != n_work) || (bu_ineq_up.rows() != n_work))
@@ -508,14 +591,18 @@ void MpcController::validityCheckDimensions()
 
     if (softenedStateConstraints)
     {
-        n_work = Ax_ineq.rows();
+        n_work = Ax_ineq.rows(); // state constraint dimension
         if ((n_work != Qx_constraint_cost.rows()) || (n_work != Qx_constraint_cost.cols()))
             throw std::invalid_argument("Inconsistent state slack variable dimensions");
+
+        n_work = Ax_term_ineq.rows(); // terminal state constraint dimension
+        if ((n_work != Qxterm_constraint_cost.rows()) || (n_work != Qxterm_constraint_cost.cols()))
+            throw std::invalid_argument("Inconsistent terminal state slack variable dimensions");
     }
 
     if (softenedInputConstraints)
     {
-        n_work = Au_ineq.rows();
+        n_work = Au_ineq.rows(); // input constraint dimension
         if ((n_work != Qu_constraint_cost.rows()) || (n_work != Qu_constraint_cost.cols()))
             throw std::invalid_argument("Inconsistent input slack variable dimensions");
     }
