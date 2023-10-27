@@ -98,6 +98,7 @@ int main()
       n_horizon, t_loop);
     */
 
+    /*
     // create MPC object - with softened state and input constraints
     MpcController MPC(x0, x_ref, 
       A_dyn, B_dyn, 
@@ -107,6 +108,11 @@ int main()
       Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
       Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
+    */
+
+    // build MPC object from default constructor
+    MpcController MPC;
+    
 
     // display optimization problem matrices
     //MPC_soft.printOptimizationProblem();

@@ -36,59 +36,59 @@ class MpcController
   protected:
 
     // number of states, inputs, and inequality constraints
-    int n_states;
-    int n_inputs;
-    int n_xineq;
-    int n_uineq;
-    int n_xtermineq;
+    int n_states = 0;
+    int n_inputs = 0;
+    int n_xineq = 0;
+    int n_uineq = 0;
+    int n_xtermineq = 0;
 
     // prediction horizon
-    int n_horizon; 
+    int n_horizon = 0; 
 
     // loop time
-    double T_sec;
+    double T_sec = 0;
 
     // flags
-    bool softenedStateConstraints;
-    bool softenedInputConstraints;
+    bool softenedStateConstraints = false;
+    bool softenedInputConstraints = false;
 
     // initial condition
-    Eigen::VectorXd x0;
+    Eigen::VectorXd x0 = Eigen::VectorXd::Zero(0);
 
     // reference
-    Eigen::MatrixXd x_ref;
+    Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(0,0);
 
     // dynamics matrices
-    Eigen::MatrixXd A_dyn;
-    Eigen::MatrixXd B_dyn;
+    Eigen::MatrixXd A_dyn = Eigen::MatrixXd::Zero(0,0);
+    Eigen::MatrixXd B_dyn = Eigen::MatrixXd::Zero(0,0);
 
     // cost function matrices
-    Eigen::MatrixXd Q_cost;
-    Eigen::MatrixXd R_cost;
-    Eigen::MatrixXd P_cost; // terminal cost
+    Eigen::MatrixXd Q_cost = Eigen::MatrixXd::Zero(0,0);
+    Eigen::MatrixXd R_cost = Eigen::MatrixXd::Zero(0,0);
+    Eigen::MatrixXd P_cost = Eigen::MatrixXd::Zero(0,0); // terminal cost
 
     // softened constraint costs
     // J_k = (1/2)*(s_k^T) Q (s_k)
     // where bx_low <= Ax*x_k - sx_k <= bx_high
     // where bu_low <= Au*u_k - su_k <= bu_high
-    Eigen::MatrixXd Qx_constraint_cost;
-    Eigen::MatrixXd Qxterm_constraint_cost;
-    Eigen::MatrixXd Qu_constraint_cost;
+    Eigen::MatrixXd Qx_constraint_cost = Eigen::MatrixXd::Zero(0,0);
+    Eigen::MatrixXd Qxterm_constraint_cost = Eigen::MatrixXd::Zero(0,0);
+    Eigen::MatrixXd Qu_constraint_cost = Eigen::MatrixXd::Zero(0,0);
 
     // state constraints
-    Eigen::MatrixXd Ax_ineq;
-    Eigen::VectorXd bx_ineq_low;
-    Eigen::VectorXd bx_ineq_up;
+    Eigen::MatrixXd Ax_ineq = Eigen::MatrixXd::Zero(0,0);
+    Eigen::VectorXd bx_ineq_low = Eigen::VectorXd::Zero(0);
+    Eigen::VectorXd bx_ineq_up = Eigen::VectorXd::Zero(0);
 
     // terminal state constraints
-    Eigen::MatrixXd Ax_term_ineq;
-    Eigen::VectorXd bx_term_ineq_low;
-    Eigen::VectorXd bx_term_ineq_up;
+    Eigen::MatrixXd Ax_term_ineq = Eigen::MatrixXd::Zero(0,0);
+    Eigen::VectorXd bx_term_ineq_low = Eigen::VectorXd::Zero(0);
+    Eigen::VectorXd bx_term_ineq_up = Eigen::VectorXd::Zero(0);
 
     // input constraints
-    Eigen::MatrixXd Au_ineq;
-    Eigen::VectorXd bu_ineq_low;
-    Eigen::VectorXd bu_ineq_up;
+    Eigen::MatrixXd Au_ineq = Eigen::MatrixXd::Zero(0,0);
+    Eigen::VectorXd bu_ineq_low = Eigen::VectorXd::Zero(0);
+    Eigen::VectorXd bu_ineq_up = Eigen::VectorXd::Zero(0);
 
     // optimization problem matrices
     Eigen::SparseMatrix<double> H; // hessian
@@ -99,7 +99,7 @@ class MpcController
 
     // solver variables
     OsqpEigen::Solver solver;
-    Eigen::VectorXd solution;
+    Eigen::VectorXd solution = Eigen::VectorXd::Zero(0);
 
     // setup optimization problem
     void makeInequalityMatrices();
@@ -113,6 +113,9 @@ class MpcController
     void validityCheckDimensions();
 
   public:
+
+    // constructor - default
+    MpcController() = default;
 
     // constructor - no constraint softening
     MpcController(
@@ -181,6 +184,23 @@ class MpcController
       const Eigen::VectorXd &bu_ineq_up,
       int n_horizon, 
       double T_loop_sec);
+
+    // problem setup methods
+    void setDynMatrices(const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn);
+    void setStateCost(const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost);
+    void setTerminalCost(const Eigen::MatrixXd &P_cost);
+    void setStateConstraints(const Eigen::MatrixXd &Ax_ineq, 
+      const Eigen::MatrixXd &bx_ineq_low, const Eigen::MatrixXd &bx_ineq_up);
+    void setInputConstraints(const Eigen::MatrixXd &Au_ineq, 
+      const Eigen::MatrixXd &bu_ineq_low, const Eigen::MatrixXd &bu_ineq_up);
+    void setTerminalStateConstraints(const Eigen::MatrixXd &Ax_term_ineq, 
+      const Eigen::MatrixXd &bx_term_ineq_low, const Eigen::MatrixXd &bx_term_ineq_up);
+    void setStateConstraintSlackVarsCost(const Eigen::MatrixXd &Qx_constraint_cost);
+    void setInputConstraintSlackVarsCost(const Eigen::MatrixXd &Qu_constraint_cost);
+    void setStateTerminalConstraintSlackVarsCost(const Eigen::MatrixXd &Qxterm_constraint_cost);
+    void setMpcHorizon(int n_horizon);
+    void setMaxExecutionTime(double T_loop_sec);
+    void buildController();
 
     // control method
     Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref);
