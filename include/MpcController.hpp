@@ -46,11 +46,16 @@ class MpcController
     int n_horizon = 0; 
 
     // loop time
-    double T_sec = 0;
+    double T_sec = inf;
 
     // flags
+    bool terminalCostSpecified = false;
     bool softenedStateConstraints = false;
     bool softenedInputConstraints = false;
+    bool stateConstraintSpecified = false;
+    bool inputConstraintSpecified = false;
+    bool terminalStateConstraintSpecified = false;
+    bool terminalStateConstraintSofteningCostSpecified = false;
 
     // initial condition
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(0);
@@ -119,8 +124,6 @@ class MpcController
 
     // constructor - no constraint softening
     MpcController(
-      const Eigen::VectorXd &x0, 
-      const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, 
       const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, 
@@ -140,8 +143,6 @@ class MpcController
 
     // constructor - softened state constraints
     MpcController(
-      const Eigen::VectorXd &x0, 
-      const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, 
       const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, 
@@ -163,8 +164,6 @@ class MpcController
 
     // constructor - softened state and input constraints
     MpcController(
-      const Eigen::VectorXd &x0, 
-      const Eigen::MatrixXd &x_ref, 
       const Eigen::MatrixXd &A_dyn, 
       const Eigen::MatrixXd &B_dyn,
       const Eigen::MatrixXd &Q_cost, 
@@ -187,7 +186,7 @@ class MpcController
 
     // problem setup methods
     void setDynMatrices(const Eigen::MatrixXd &A_dyn, const Eigen::MatrixXd &B_dyn);
-    void setStateCost(const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost);
+    void setStageCost(const Eigen::MatrixXd &Q_cost, const Eigen::MatrixXd &R_cost);
     void setTerminalCost(const Eigen::MatrixXd &P_cost);
     void setStateConstraints(const Eigen::MatrixXd &Ax_ineq, 
       const Eigen::MatrixXd &bx_ineq_low, const Eigen::MatrixXd &bx_ineq_up);
