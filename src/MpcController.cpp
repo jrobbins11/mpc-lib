@@ -750,6 +750,11 @@ void MpcController::printOptimizationProblem()
     std::cout << b_low << std::endl;
     std::cout << "b_up = " << std::endl;
     std::cout << b_up << std::endl;
+
+    // dimensions
+    std::cout << "Problem dimensions:" << std::endl;
+    std::cout << " number of unknowns = " << A.cols() << std::endl;
+    std::cout << " number of constraints = " << A.rows() << std::endl;
 }
 
 void MpcController::printSolution()
