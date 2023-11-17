@@ -14,6 +14,9 @@ osqp-eigen:
 - in an appropriate directory:
 - git clone https://github.com/robotology/osqp-eigen.git
 - cd osqp-eigen
+- replace "PROFILING" with "OSQP_ENABLE_PROFILING" in the following files:
+    - include/OsqpEigen/Constants.hpp
+    - src/Settings.cpp
 - mkdir build
 - cd build
 - cmake ..
