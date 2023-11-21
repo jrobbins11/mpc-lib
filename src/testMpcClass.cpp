@@ -1,5 +1,6 @@
 #include <iostream>
 #include <limits>
+#include <ctime>
 #include "MpcController.hpp"
 
 Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
@@ -96,7 +97,6 @@ int main()
       n_horizon, t_loop);
     */
 
-    /*
     // create MPC object - with softened state and input constraints
     MpcController MPC(A_dyn, B_dyn, 
       Q_cost, R_cost, P_cost, 
@@ -105,8 +105,8 @@ int main()
       Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
       Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
-    */
 
+    /*
     // build MPC object from default constructor
     MpcController MPC;
     MPC.setDynMatrices(A_dyn, B_dyn);
@@ -114,6 +114,7 @@ int main()
     MPC.setMpcHorizon(n_horizon);
     MPC.setMaxExecutionTime(t_loop);
     MPC.buildController();
+    */
 
     // display optimization problem matrices
     //MPC.printOptimizationProblem();
@@ -121,17 +122,43 @@ int main()
     // declare control input variable
     Eigen::Vector<double, 1> u; 
 
+    // time execution
+    clock_t timer;
+    float avg_time, time;
+    float tot_time = 0;
+    float max_time = 0;
+
     // run MPC controller in loop and print control inputs to screen
+    int n_cycles = 19; // numbe of cycles 
     Eigen::Vector<double, 2> x = x0;
-    for (int i=0; i<19; i++)
+    for (int i=0; i<n_cycles; i++)
     {
-      // compute control and print to console
+     
+      // start timer
+      timer = clock();
+
+      // compute control
       u = MPC.control(x, x_ref);
+
+      // log execution time
+      timer = clock() - timer;
+      time = (float) timer/CLOCKS_PER_SEC;
+      tot_time += time;
+      if (time > max_time)
+        max_time = time;
+
+      // print control output to console
       std::cout << "u = " << u << std::endl;
 
       // step dynamics
       x = stepDynamics(A_dyn, B_dyn, x, u);
     }
     
+    // display execution time
+    std::cout << "Average MPC execution time = " << 
+        tot_time/n_cycles << " sec" << std::endl;
+    std::cout << "Max MPC execution time = " <<
+        max_time << " sec" << std::endl;
+
     return 0;
 }
