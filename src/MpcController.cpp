@@ -13,6 +13,21 @@ void MpcController::setDynMatrices(const Eigen::MatrixXd &A_dyn_in,
     n_inputs = B_dyn.cols();
 }
 
+void MpcController::setDynMatrices(const std::vector<Eigen::MatrixXd> &A_dyn_vec_in, const std::vector<Eigen::MatrixXd> &B_dyn_vec_in)
+{
+    // LTV method -> this is an LTV problem
+    LTV = true;
+
+    // copy in matrices
+    A_dyn_vec = A_dyn_vec_in;
+    B_dyn_vec = B_dyn_vec_in;
+
+    // set state and input dimensions
+    n_states = A_dyn_vec[0].rows();
+    n_inputs = B_dyn_vec[0].cols();
+
+}
+
 void MpcController::setStageCost(const Eigen::MatrixXd &Q_cost_in, 
     const Eigen::MatrixXd &R_cost_in)
 {
@@ -338,8 +353,16 @@ void MpcController::makeInequalityMatrices()
         else // dynamic constraints
         {
             Aeq_states.block(i*n_states,i*n_states,n_states,n_states) = -1*I_st;
-            Aeq_states.block(i*n_states,(i-1)*n_states,n_states,n_states) = A_dyn;
-            Aeq_inputs.block(i*n_states,(i-1)*n_inputs,n_states,n_inputs) = B_dyn;
+            if (LTV)
+            {
+                Aeq_states.block(i*n_states,(i-1)*n_states,n_states,n_states) = A_dyn_vec[i-1];
+                Aeq_inputs.block(i*n_states,(i-1)*n_inputs,n_states,n_inputs) = B_dyn_vec[i-1];
+            }
+            else
+            {
+                Aeq_states.block(i*n_states,(i-1)*n_states,n_states,n_states) = A_dyn;
+                Aeq_inputs.block(i*n_states,(i-1)*n_inputs,n_states,n_inputs) = B_dyn;
+            }
         }
     }
 
@@ -656,6 +679,69 @@ Eigen::VectorXd MpcController::control(const Eigen::VectorXd &x, const Eigen::Ma
 
 }
 
+// LTV control method
+Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref,
+      const std::vector<Eigen::MatrixXd> &A_dyn_vec, const std::vector<Eigen::MatrixXd> &B_dyn_vec)
+{
+
+    // set LTV flag
+    LTV = true;
+
+    // check argument dimensions
+    if (x.rows() != n_states)
+        throw std::invalid_argument("Inconsistent state vector dimension"); // TO DO: fault behavior
+
+    if ((x_ref.rows() != n_states) || (x_ref.cols() != n_horizon))
+        throw std::invalid_argument("Inconsistent state reference vector dimensions"); // TO DO: fault behavior
+
+    for (int i=0; i<n_horizon; i++)
+    {
+        if ((A_dyn_vec[i].rows() != n_states) || (A_dyn_vec[i].cols() != n_states))
+            throw std::invalid_argument("LTV A matrix dimensions are incosistent");
+        if ((B_dyn_vec[i].rows() != n_states) || (B_dyn_vec[i].cols() != n_inputs))
+            throw std::invalid_argument("LTV B matrix dimensions are incosistent");
+    }
+    // TO DO: check length of dynamic matrix vectors
+
+    // store inputs
+    this->x0 = x;
+    this->x_ref = x_ref;
+    this->A_dyn_vec = A_dyn_vec;
+    this->B_dyn_vec = B_dyn_vec;
+
+    // constraint update
+    // TO DO: split up this function so that only the dynamic portions of matrices need to be updated
+    makeInequalityMatrices();
+
+    // gradient update
+    Eigen::VectorXd x_ref_i; // declare
+    for (int i=1; i<n_horizon+1; i++)
+    {
+        // reference at step i, offset b/c x0 included in state
+        x_ref_i = x_ref.block(0, i-1, n_states, 1);
+
+        // insert -Q*x_ref into gradient vector
+        if (i < n_horizon)
+            f.segment(i*n_states, n_states) = -Q_cost*x_ref_i;
+        else
+            f.segment(i*n_states, n_states) = -P_cost*x_ref_i;
+    }
+
+    // call OsqpEigen update methods
+    if (!solver.updateBounds(b_low, b_up))
+        std::cout << "failed to update bounds" << std::endl; // TO DO: fault behavior
+    if (!solver.updateGradient(f))
+        std::cout << "failed to update gradient" << std::endl; // TO DO: fault behavior
+
+    // solve the optimization problem
+    if (!solveOptimizationProblem())
+        std::cout << "solver returned with error" << std::endl; // TO DO: fault behavior
+    
+    // return the control input for step 0
+    return solution.segment(n_states*(n_horizon+1), n_inputs);
+
+}
+
 // utilities
 void MpcController::getTripletsForMatrix(const Eigen::MatrixXd &mat, std::vector<Eigen::Triplet<double>> &tripvec,
       int rowOffset, int colOffset)
@@ -724,6 +810,19 @@ void MpcController::validityCheckDimensions()
         // check softened input constraint dimension
         if ((Qu_constraint_cost.rows() != n_uineq) || (Qu_constraint_cost.cols() != n_uineq))
             throw std::invalid_argument("Inconsistent input slack variable dimensions");
+    }
+
+    // check consistency of matrix dimensions for LTV problems
+    // TO DO: check length of dynamic matrix vectors
+    if (LTV)
+    {
+        for (int i=0; i<n_horizon; i++)
+        {
+            if ((A_dyn_vec[i].rows() != n_states) || (A_dyn_vec[i].cols() != n_states))
+                throw std::invalid_argument("LTV A matrix dimensions are incosistent");
+            if ((B_dyn_vec[i].rows() != n_states) || (B_dyn_vec[i].cols() != n_inputs))
+                throw std::invalid_argument("LTV B matrix dimensions are incosistent");
+        }
     }
 }
 
