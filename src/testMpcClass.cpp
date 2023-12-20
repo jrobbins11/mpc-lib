@@ -76,6 +76,15 @@ int main()
     // references, allowed to vary over horizon
     Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(2, n_horizon);
 
+    // LTV setup
+    std::vector<Eigen::MatrixXd> A_dyn_vec;
+    std::vector<Eigen::MatrixXd> B_dyn_vec;
+    for (int i=0; i<n_horizon; i++)
+    {
+      A_dyn_vec.push_back(A_dyn);
+      B_dyn_vec.push_back(B_dyn);
+    }
+
     /*
     // create MPC object - no constraint softening
     MpcController MPC(A_dyn, B_dyn, 
@@ -97,6 +106,7 @@ int main()
       n_horizon, t_loop);
     */
 
+    /*
     // create MPC object - with softened state and input constraints
     MpcController MPC(A_dyn, B_dyn, 
       Q_cost, R_cost, P_cost, 
@@ -105,16 +115,16 @@ int main()
       Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
       Au_ineq, bu_ineq_low, bu_ineq_up, 
       n_horizon, t_loop);
+    */
 
-    /*
     // build MPC object from default constructor
     MpcController MPC;
-    MPC.setDynMatrices(A_dyn, B_dyn);
+    //MPC.setDynMatrices(A_dyn, B_dyn);
+    MPC.setDynMatrices(A_dyn_vec, B_dyn_vec); // LTV
     MPC.setStageCost(Q_cost, R_cost);
     MPC.setMpcHorizon(n_horizon);
     MPC.setMaxExecutionTime(t_loop);
     MPC.buildController();
-    */
 
     // display optimization problem matrices
     //MPC.printOptimizationProblem();
@@ -138,7 +148,8 @@ int main()
       timer = clock();
 
       // compute control
-      u = MPC.control(x, x_ref);
+      // u = MPC.control(x, x_ref);
+      u = MPC.control(x, x_ref, A_dyn_vec, B_dyn_vec); // LTV
 
       // log execution time
       timer = clock() - timer;

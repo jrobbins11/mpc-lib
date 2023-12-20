@@ -22,6 +22,10 @@ void MpcController::setDynMatrices(const std::vector<Eigen::MatrixXd> &A_dyn_vec
     A_dyn_vec = A_dyn_vec_in;
     B_dyn_vec = B_dyn_vec_in;
 
+    // set LTI dynamics matrices (unused)
+    A_dyn = A_dyn_vec[0];
+    B_dyn = B_dyn_vec[0];
+
     // set state and input dimensions
     n_states = A_dyn_vec[0].rows();
     n_inputs = B_dyn_vec[0].cols();
@@ -680,7 +684,7 @@ Eigen::VectorXd MpcController::control(const Eigen::VectorXd &x, const Eigen::Ma
 }
 
 // LTV control method
-Eigen::VectorXd control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref,
+Eigen::VectorXd MpcController::control(const Eigen::VectorXd &x, const Eigen::MatrixXd &x_ref,
       const std::vector<Eigen::MatrixXd> &A_dyn_vec, const std::vector<Eigen::MatrixXd> &B_dyn_vec)
 {
 
