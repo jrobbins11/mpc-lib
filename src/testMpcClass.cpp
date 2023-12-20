@@ -1,6 +1,7 @@
 #include <iostream>
 #include <limits>
 #include <ctime>
+#include <cmath>
 #include "MpcController.hpp"
 
 Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
@@ -9,10 +10,152 @@ Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
     return A*x + B*u;
 }
 
+// math utilities
+unsigned int factorial(unsigned int x)
+{
+    return (x==0) ? 1 : x*factorial(x-1);
+}
+
+Eigen::MatrixXd pow(const Eigen::MatrixXd &M, unsigned int N) // matrix power
+{
+  // check dimensions
+  if (M.rows() != M.cols())
+    throw std::invalid_argument("M is not square");
+
+  // compute matrix power
+  Eigen::MatrixXd Mpow = Eigen::MatrixXd::Identity(M.rows(), M.cols()); // init
+  for (unsigned int i=0; i<N; i++)
+  {
+    Mpow *= M;
+  }
+  return Mpow;
+}
+
+// Ackermann nonlinear dynamics
+Eigen::Vector<double,6> ackermannDyn(const Eigen::Vector<double,6> &x, const Eigen::Vector<double,2> &u,
+  double wheelBase, double dT)
+{
+  // state: x = [xp; yp; th; psi; v; psidot]
+  // input: u = [a; psiddot]
+
+  // unpack
+  double xp, yp, th, psi, v, psidot, a, psiddot;
+
+  xp = x[0];
+  yp = x[1];
+  th = x[2];
+  psi = x[3];
+  v = x[4];
+  psidot = x[5];
+
+  a = u[0];
+  psiddot = u[1];
+
+  // Ackermann kinematics
+  double xpdot, ypdot, thdot;
+  xpdot = v*cos(th);
+  ypdot = v*sin(th);
+  thdot = (1/wheelBase)*v*tan(psi);
+
+  // assemble derivative
+  Eigen::Vector<double, 6> xdot;
+  xdot << xpdot, ypdot, thdot, psidot, a, psiddot;
+
+  // discrete time dynamics
+  return x + xdot*dT;
+
+}
+
+// linearized dynamics
+void ackermannLinearizedDynMatrices(const Eigen::Vector<double,6> &x, double wheelBase, 
+  Eigen::Matrix<double,6,6> &Ac, Eigen::Matrix<double,6,3> &Bc)
+{
+  // unpack
+  double xp, yp, th, psi, v, psidot;
+
+  xp = x[0];
+  yp = x[1];
+  th = x[2];
+  psi = x[3];
+  v = x[4];
+  psidot = x[5];
+
+  // A matrix
+  Eigen::Matrix<double, 6, 6> A;
+  A << 0, 0, -v*sin(th), 0, cos(th), 0, 
+       0, 0, v*cos(th), 0, sin(th), 0,
+       0, 0, 0, (v/wheelBase)*pow(1/cos(psi),2), (1/wheelBase)*tan(psi), 0,
+       0, 0, 0, 0, 0, 1,
+       0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0;
+  Ac = A;
+  
+
+  // B matrix
+  Eigen::Matrix<double, 6, 3> B;
+  B << 0, 0, v*th*sin(th),
+       0, 0, -v*th*cos(th),
+       0, 0, -(1/wheelBase)*v*psi*pow(1/cos(psi), 2),
+       0, 0, 0,
+       1, 0, 0,
+       0, 1, 0;
+  Bc = B;
+
+}
+
+// continuous to discrete matrix conversion
+void cont2DiscDynMatrices(const Eigen::MatrixXd &Ac, const Eigen::MatrixXd &Bc, double dT, 
+  Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd)
+{
+  // Taylor series order
+  const int N = 10; 
+
+  // initialize discrete matrices
+  Ad.resize(Ac.rows(), Ac.cols());
+  Bd.resize(Bc.rows(), Bc.cols());
+  Ad = Eigen::MatrixXd::Zero(Ac.rows(), Ac.cols());
+  Bd = Eigen::MatrixXd::Zero(Bd.rows(), Bd.cols());
+
+  // Taylor series approximation
+  for (int k=0; k<=N; k++)
+  {
+    Ad = Ad + (1/((double) factorial(k)))*pow(Ac*dT,k);
+    if (k >= 1)
+      Bd = Bd + ((1/((double) factorial(k)))*pow(Ac,k-1)*pow(dT,k))*Bc;
+  }
+}
+
 int main()
 {
     // constants
     const double inf = std::numeric_limits<double>::max();
+    const double dT = 0.1;
+
+    /* Ackermann vehicle (LTV) */
+
+    // constants
+    const double wheelBase = 1;
+
+    // initial state
+    Eigen::Vector<double, 6> x0;
+    x0 << 0, 0, 0, 0, 5, 0;
+
+    // linearize
+    Eigen::Matrix<double,6,6> Ac;
+    Eigen::Matrix<double,6,3> Bc;
+    ackermannLinearizedDynMatrices(x0, wheelBase, Ac, Bc);
+    std::cout << "Ac = " << Ac << std::endl;
+    std::cout << "Bc = " << Bc << std::endl;
+
+    // discretize
+    Eigen::MatrixXd Ad;
+    Eigen::MatrixXd Bd;
+    cont2DiscDynMatrices(Ac, Bc, dT, Ad, Bd);
+    std::cout << "Ad = " << Ad << std::endl;
+    std::cout << "Bd = " << Bd << std::endl; 
+
+    /* double integrator (LTI) */
+    /*
 
     // dynamics matrices
     Eigen::Matrix<double, 2, 2> A_dyn;
@@ -85,42 +228,9 @@ int main()
       B_dyn_vec.push_back(B_dyn);
     }
 
-    /*
-    // create MPC object - no constraint softening
-    MpcController MPC(A_dyn, B_dyn, 
-      Q_cost, R_cost, P_cost, 
-      Ax_ineq, bx_ineq_low, bx_ineq_up, 
-      Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
-      Au_ineq, bu_ineq_low, bu_ineq_up, 
-      n_horizon, t_loop);
-    */
-
-    /*
-    // create MPC object - with softened state constraints
-    MpcController MPC(A_dyn, B_dyn, 
-      Q_cost, R_cost, P_cost, 
-      Qx_constraint_cost, Qxterm_constraint_cost,
-      Ax_ineq, bx_ineq_low, bx_ineq_up, 
-      Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
-      Au_ineq, bu_ineq_low, bu_ineq_up, 
-      n_horizon, t_loop);
-    */
-
-    /*
-    // create MPC object - with softened state and input constraints
-    MpcController MPC(A_dyn, B_dyn, 
-      Q_cost, R_cost, P_cost, 
-      Qx_constraint_cost, Qxterm_constraint_cost, Qu_constraint_cost,
-      Ax_ineq, bx_ineq_low, bx_ineq_up, 
-      Ax_term_ineq, bx_term_ineq_low, bx_term_ineq_up, 
-      Au_ineq, bu_ineq_low, bu_ineq_up, 
-      n_horizon, t_loop);
-    */
-
     // build MPC object from default constructor
     MpcController MPC;
-    //MPC.setDynMatrices(A_dyn, B_dyn);
-    MPC.setDynMatrices(A_dyn_vec, B_dyn_vec); // LTV
+    MPC.setDynMatrices(A_dyn, B_dyn);
     MPC.setStageCost(Q_cost, R_cost);
     MPC.setMpcHorizon(n_horizon);
     MPC.setMaxExecutionTime(t_loop);
@@ -148,8 +258,7 @@ int main()
       timer = clock();
 
       // compute control
-      // u = MPC.control(x, x_ref);
-      u = MPC.control(x, x_ref, A_dyn_vec, B_dyn_vec); // LTV
+      u = MPC.control(x, x_ref);
 
       // log execution time
       timer = clock() - timer;
@@ -170,6 +279,8 @@ int main()
         tot_time/n_cycles << " sec" << std::endl;
     std::cout << "Max MPC execution time = " <<
         max_time << " sec" << std::endl;
+    
+    */
 
     return 0;
 }
