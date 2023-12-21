@@ -76,52 +76,68 @@ void ackermannLinearizedDynMatrices(const Eigen::Vector<double,6> &x, double whe
 
 }
 
-// continuous to discrete matrix conversion
-void cont2DiscDynMatrices(const Eigen::MatrixXd &Ac, const Eigen::MatrixXd &Bc, double dT, 
-  Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd)
-{
-  // Taylor series order
-  const int N = 10; 
-
-  // initialize discrete matrices
-  Ad.resize(Ac.rows(), Ac.cols());
-  Bd.resize(Bc.rows(), Bc.cols());
-  Ad = Eigen::MatrixXd::Zero(Ac.rows(), Ac.cols());
-  Bd = Eigen::MatrixXd::Zero(Bd.rows(), Bd.cols());
-
-  // Taylor series approximation
-  for (int k=0; k<=N; k++)
-  {
-    Ad = Ad + (1/((double) factorial(k)))*pow(Ac*dT,k);
-    if (k >= 1)
-      Bd = Bd + ((1/((double) factorial(k)))*pow(Ac,k-1)*pow(dT,k))*Bc;
-  }
-}
-
 // function to construct a reference
-Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, double v_des, double th_des, int n_horizon, double t, double dT)
+Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, unsigned int n_sim, double dT)
 {
+  // constants
+  const double pi = M_PI;
+
   // initialize output
   Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(6, n_horizon);
 
-  // construct reference
+  // rotational and velocity frequencies
+  double om_th = 2*pi/10;
+  double om_v = 2*pi/5;
+
+  // velocity oscillation mean and magnitude
+  double v_avg = 5;
+  double v_amp = 1;
+
+  // integrate to current sim step
+  Eigen::VectorXd x_n = x0; // init
+  double t, th, v;
+  for (int j=0; j<n_sim; j++)
+  {
+    // get v and th
+    t = j*dT;
+    th = x0[2] + 2*pi*om_th*t;
+    v = x0[4] + v_amp*sin(om_v*t);
+
+    // integrate
+    x_n(0) = x_n(0) + v*cos(th)*dT;
+    x_n(1) = x_n(1) + v*sin(th)*dT;
+    x_n(2) = th;
+    x_n(3) = 0;
+    x_n(4) = v;
+    x_n(5) = 0;
+  }
+
+  // integrate over horizon
   for (int k=0; k<n_horizon; k++)
   {
+
+    // get v and th
+    t = (n_sim+k)*dT;
+    th = x0[2] + 2*pi*om_th*t;
+    v = x0[4] + v_amp*sin(om_v*t);
+
+    // integrate
     if (k==0)
     {
-      x_ref(0,k) = (x0(0) + v_des*cos(th_des)*t) + v_des*cos(th_des)*dT;
-      x_ref(1,k) = (x0(0) + v_des*sin(th_des)*t) + v_des*sin(th_des)*dT;
+        x_ref(0,k) = x_n(0) + v*cos(th)*dT;
+        x_ref(1,k) = x_n(1) + v*sin(th)*dT;
     }
     else
     {
-      x_ref(0,k) = x_ref(0,k-1) + v_des*cos(th_des)*dT;
-      x_ref(1,k) = x_ref(1,k-1) + v_des*sin(th_des)*dT;
+        x_ref(0,k) = x_ref(0,k-1) + v*cos(th)*dT;
+        x_ref(1,k) = x_ref(1,k-1) + v*sin(th)*dT;
     }
-    x_ref(2,k) = th_des;
+    x_ref(2,k) = th;
     x_ref(3,k) = 0;
-    x_ref(4,k) = v_des;
+    x_ref(4,k) = v;
     x_ref(5,k) = 0; 
   }
+
   return x_ref;
 }
 
@@ -167,18 +183,13 @@ int main()
     R.diagonal() << 1e-3, 1e-3*pow(180/pi,2), 0;
     P.diagonal() << 1, 1, 1*pow(180/pi,2), 0, 0, 0;
 
-    // desired velocity and heading
-    double v_des, th_des;
-    v_des = 7;
-    th_des = pi/4;   
-
     // initial state
     Eigen::Vector<double, 6> x0;
     x0 << 0, 0, 0, 0, 5, 0;
 
     // initial reference
     Eigen::MatrixXd x_ref;
-    x_ref = constructReference(x0, v_des, th_des, n_horizon, 0, dT);
+    x_ref = constructReference(x0, n_horizon, 0, dT);
 
     // initial dynamic linearization (about reference)
     std::vector<Eigen::MatrixXd> A_vec;
@@ -213,6 +224,9 @@ int main()
     // declare control input variable
     Eigen::Vector<double, 3> u; 
 
+    // declare position error variable
+    double e_pos;
+
     // time execution
     clock_t timer;
     float avg_time, time;
@@ -220,13 +234,13 @@ int main()
     float max_time = 0;
 
     // run MPC controller in loop and print control inputs to screen
-    int n_cycles = 30; // numbe of cycles 
+    int n_cycles = 100; // numbe of cycles 
     Eigen::Vector<double, 6> x = x0;
     for (int i=0; i<n_cycles; i++)
     {
      
       // generate reference
-      x_ref = constructReference(x0, v_des, th_des, n_horizon, dT*i, dT);
+      x_ref = constructReference(x0, n_horizon, i, dT);
 
       // linearize about reference
       for (int k=0; k<n_horizon; k++)
@@ -253,11 +267,13 @@ int main()
       if (time > max_time)
         max_time = time;
 
-      // print control output to console
-      std::cout << "u = " << u << std::endl;
-
       // step dynamics
       x = ackermannDyn(x, u.segment(0,2), wheelBase, dT);
+
+      // print instantaneous position error magnitude
+      e_pos = sqrt(pow(x(0)-x_ref(0,0), 2) + (pow(x(1)-x_ref(1,0), 2)));
+      std::cout << "e_pos = " << e_pos << std::endl;
+
     }
     
     // display execution time

@@ -3,7 +3,6 @@
 
 #include <cmath>
 #include "Eigen/Dense"
-#include "Eigen/Sparse"
 
 // factorial
 unsigned int factorial(unsigned int x)
@@ -25,6 +24,28 @@ Eigen::MatrixXd pow(const Eigen::MatrixXd &M, unsigned int N)
     Mpow *= M;
   }
   return Mpow;
+}
+
+// continuous to discrete dynamic matrix conversion
+void cont2DiscDynMatrices(const Eigen::MatrixXd &Ac, const Eigen::MatrixXd &Bc, double dT, 
+  Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd)
+{
+  // Taylor series order
+  const int N = 10; 
+
+  // initialize discrete matrices
+  Ad.resize(Ac.rows(), Ac.cols());
+  Bd.resize(Bc.rows(), Bc.cols());
+  Ad = Eigen::MatrixXd::Zero(Ac.rows(), Ac.cols());
+  Bd = Eigen::MatrixXd::Zero(Bd.rows(), Bd.cols());
+
+  // Taylor series approximation
+  for (int k=0; k<=N; k++)
+  {
+    Ad = Ad + (1/((double) factorial(k)))*pow(Ac*dT,k);
+    if (k >= 1)
+      Bd = Bd + ((1/((double) factorial(k)))*pow(Ac,k-1)*pow(dT,k))*Bc;
+  }
 }
 
 #endif
