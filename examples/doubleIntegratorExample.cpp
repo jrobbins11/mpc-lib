@@ -1,13 +1,8 @@
 #include <iostream>
 #include <limits>
 #include <ctime>
+#include <cmath>
 #include "MpcController.hpp"
-
-Eigen::VectorXd stepDynamics(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
-  const Eigen::VectorXd &x, const Eigen::VectorXd &u)
-{
-    return A*x + B*u;
-}
 
 int main()
 {
@@ -151,7 +146,7 @@ int main()
       std::cout << "u = " << u << std::endl;
 
       // step dynamics
-      x = stepDynamics(A_dyn, B_dyn, x, u);
+      x = A_dyn*x + B_dyn*u;
     }
     
     // display execution time
