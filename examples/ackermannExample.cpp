@@ -87,12 +87,14 @@ Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, uns
   Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(6, n_horizon);
 
   // rotational and velocity frequencies
-  double om_th = 2*pi/50;
+  double om_th = 2*pi/10;
   double om_v = 2*pi/10;
 
-  // velocity oscillation mean and magnitude
+  // oscillation mean and magnitude
   double v_avg = 5;
   double v_amp = 1;
+  double th_avg = 0;
+  double th_amp = pi/4;
 
   // integrate to current sim step
   Eigen::VectorXd x_n = x0; // init
@@ -101,7 +103,7 @@ Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, uns
   {
     // get v and th
     t = j*dT;
-    th = x0[2] + om_th*t;
+    th = x0[2] + th_amp*sin(om_th*t);
     v = x0[4] + v_amp*sin(om_v*t);
 
     // integrate
@@ -119,7 +121,7 @@ Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, uns
 
     // get v and th
     t = (n_sim+k)*dT;
-    th = x0[2] + 2*pi*om_th*t;
+    th = x0[2] + th_amp*sin(om_th*t);
     v = x0[4] + v_amp*sin(om_v*t);
 
     // integrate
@@ -241,7 +243,7 @@ int main()
     std::ofstream tFile("../data/ackermannTimeData.txt");
 
     // run MPC controller in loop and print control inputs to screen
-    int n_cycles = 500; // number of cycles 
+    int n_cycles = 1000; // number of cycles 
     Eigen::Vector<double, 6> x = x0;
     for (int i=0; i<n_cycles; i++)
     {
