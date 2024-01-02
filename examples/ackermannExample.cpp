@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <limits>
 #include <ctime>
 #include <cmath>
@@ -86,8 +87,8 @@ Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, uns
   Eigen::MatrixXd x_ref = Eigen::MatrixXd::Zero(6, n_horizon);
 
   // rotational and velocity frequencies
-  double om_th = 2*pi/10;
-  double om_v = 2*pi/5;
+  double om_th = 2*pi/50;
+  double om_v = 2*pi/10;
 
   // velocity oscillation mean and magnitude
   double v_avg = 5;
@@ -100,7 +101,7 @@ Eigen::MatrixXd constructReference(const Eigen::VectorXd &x0, int n_horizon, uns
   {
     // get v and th
     t = j*dT;
-    th = x0[2] + 2*pi*om_th*t;
+    th = x0[2] + om_th*t;
     v = x0[4] + v_amp*sin(om_v*t);
 
     // integrate
@@ -233,8 +234,14 @@ int main()
     float tot_time = 0;
     float max_time = 0;
 
+    // log sim data
+    std::ofstream refFile("../data/ackermannRefData.txt");
+    std::ofstream stateFile("../data/ackermannStateData.txt");
+    std::ofstream inputFile("../data/ackermannInputData.txt");
+    std::ofstream tFile("../data/ackermannTimeData.txt");
+
     // run MPC controller in loop and print control inputs to screen
-    int n_cycles = 100; // numbe of cycles 
+    int n_cycles = 500; // number of cycles 
     Eigen::Vector<double, 6> x = x0;
     for (int i=0; i<n_cycles; i++)
     {
@@ -271,8 +278,27 @@ int main()
       x = ackermannDyn(x, u.segment(0,2), wheelBase, dT);
 
       // print instantaneous position error magnitude
-      e_pos = sqrt(pow(x(0)-x_ref(0,0), 2) + (pow(x(1)-x_ref(1,0), 2)));
-      std::cout << "e_pos = " << e_pos << std::endl;
+      // e_pos = sqrt(pow(x(0)-x_ref(0,0), 2) + (pow(x(1)-x_ref(1,0), 2)));
+      // std::cout << "e_pos = " << e_pos << std::endl;
+
+      // data logging
+      tFile << i*dT << std::endl;;
+
+      for (int j=0; j<6; j++)
+        stateFile << x(j) << " ";
+      stateFile << std::endl;
+
+      for (int k=0; k<n_horizon; k++)
+      {
+        for (int j=0; j<6; j++)
+          refFile << x_ref(j,k) << " ";
+        refFile << std::endl;
+      }
+      refFile << std::endl;
+
+      for (int j=0; j<2; j++)
+        inputFile << u(j) << " ";
+      inputFile << std::endl;
 
     }
     
