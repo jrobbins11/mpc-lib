@@ -736,6 +736,8 @@ Eigen::VectorXd MpcController::control(const Eigen::VectorXd &x, const Eigen::Ma
         std::cout << "failed to update bounds" << std::endl; // TO DO: fault behavior
     if (!solver.updateGradient(f))
         std::cout << "failed to update gradient" << std::endl; // TO DO: fault behavior
+    if (!solver.updateLinearConstraintsMatrix(A))
+        std::cout << "failed to update linear constraints matrix" << std::endl; // TO DO: fault behavior
 
     // solve the optimization problem
     if (!solveOptimizationProblem())
